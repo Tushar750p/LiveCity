@@ -138,3 +138,45 @@ async def fetch_mobile_cells(
         response = await client.get("https://opencellid.org/cell/get", params=params)
         response.raise_for_status()
         return {"configured": True, "cell": response.json()}
+
+
+SOURCE_REGISTRY = [
+    {"id": "ioda", "service": "internet", "type": "public_api", "auth": False, "enabled": True},
+    {"id": "cloudflare-radar", "service": "internet", "type": "api", "auth": True, "env": "RADAR_API_TOKEN", "enabled": True},
+    {"id": "arcgis-power", "service": "electricity", "type": "feature_server", "auth": False, "env": "POWER_ARCGIS_LAYER_URL", "enabled": True},
+    {"id": "arcgis-water", "service": "water", "type": "feature_server", "auth": False, "env": "WATER_ARCGIS_LAYER_URL", "enabled": True},
+    {"id": "opencellid", "service": "mobile", "type": "cell_database", "auth": True, "env": "OPENCELLID_API_KEY", "enabled": True},
+]
+
+
+def source_registry() -> list[dict[str, Any]]:
+    """Return source capabilities without exposing secrets."""
+    output = []
+    for source in SOURCE_REGISTRY:
+        item = dict(source)
+        env_name = item.get("env")
+        item["configured"] = bool(os.getenv(env_name)) if env_name else True
+        output.append(item)
+    return output
+
+
+def normalize_arcgis_feature(feature: dict[str, Any], service: str, source: str) -> dict[str, Any]:
+    attrs = feature.get("attributes", {}) or {}
+    geometry = feature.get("geometry", {}) or {}
+    lat = geometry.get("y")
+    lng = geometry.get("x")
+    status_text = " ".join(str(attrs.get(k, "")) for k in ("status", "STATUS", "outage_status", "OUTAGE_STATUS")).lower()
+    status = "partial" if "partial" in status_text else "restored" if any(x in status_text for x in ("restore", "normal", "resolved")) else "down"
+    return {
+        "id": f"{source}:{attrs.get('OBJECTID', attrs.get('objectid', len(attrs)))}",
+        "service": service, "status": status, "source": source,
+        "lat": lat, "lng": lng,
+        "confidence": 88 if lat is not None and lng is not None else 70,
+        "observed_at": attrs.get("updated_at") or attrs.get("UpdateTime") or attrs.get("last_update"),
+        "description": str(attrs.get("description") or attrs.get("reason") or attrs.get("status") or f"{service.title()} service interruption"),
+        "raw": attrs,
+    }
+
+
+def normalize_source_features(features: list[dict[str, Any]], service: str, source: str) -> list[dict[str, Any]]:
+    return [normalize_arcgis_feature(f, service, source) for f in features]
