@@ -1,10 +1,10 @@
 services:
-  backend:
-    build: ./backend
+  livecity:
+    build: .
     ports:
       - "8000:8000"
     environment:
-      CORS_ORIGINS: http://localhost:4173
+      CORS_ORIGINS: http://localhost:8000
       DB_PATH: /data/livecity.db
       SOURCE_POLL_SECONDS: 300
       INCIDENT_TTL_MINUTES: 360
@@ -14,15 +14,6 @@ services:
       OPENCELLID_API_KEY: ${OPENCELLID_API_KEY:-}
     volumes:
       - livecity_data:/data
-
-  frontend:
-    build: ./frontend
-    ports:
-      - "4173:4173"
-    environment:
-      VITE_API_URL: http://localhost:8000
-    depends_on:
-      - backend
 
 volumes:
   livecity_data:
