@@ -86,6 +86,47 @@ async def get_ioda_alerts(limit: int = 100):
 async def get_cloudflare_outages(days: int = 1):
     return {"source": "cloudflare-radar", "configured": bool(os.getenv("RADAR_API_TOKEN")), "outages": await fetch_cloudflare_outages(days=max(1, min(days, 7)))}
 
+@app.get("/api/incidents/live")
+async def get_live_incidents():
+    """Normalize live Internet outage signals into the LiveCity incident shape.
+
+    Source records remain separate from community reports so the UI can label them
+    correctly and we never present third-party signals as official utility reports.
+    """
+    incidents = []
+    try:
+        for item in await fetch_ioda_alerts(limit=100):
+            entity = item.get("entity", {}) if isinstance(item, dict) else {}
+            incidents.append({
+                "id": "ioda:" + str(item.get("id", item.get("entityCode", len(incidents)))),
+                "service": "internet", "status": "down", "source": "IODA",
+                "source_url": "https://ioda.inetintel.cc.gatech.edu/",
+                "location": entity.get("name") or item.get("entityName") or item.get("entityCode"),
+                "country": entity.get("code") or item.get("entityCode"),
+                "lat": item.get("lat"), "lng": item.get("lng"),
+                "confidence": 90, "observed_at": item.get("time") or item.get("createdAt"),
+                "description": item.get("description") or "Internet connectivity disruption detected by IODA."
+            })
+    except Exception:
+        pass
+    try:
+        for item in await fetch_cloudflare_outages(days=1):
+            locations = item.get("locations") or []
+            incidents.append({
+                "id": "cloudflare:" + str(item.get("id", len(incidents))),
+                "service": "internet", "status": "down", "source": "Cloudflare Radar",
+                "source_url": item.get("linkedUrl") or "https://radar.cloudflare.com/",
+                "location": ", ".join(locations) if locations else item.get("scope"),
+                "country": locations[0] if locations else None,
+                "lat": None, "lng": None,
+                "confidence": int(item.get("level") or 85),
+                "observed_at": item.get("startDate"),
+                "description": item.get("description") or ((item.get("outage") or {}).get("outageCause") or "Internet outage detected by Cloudflare Radar.")
+            })
+    except Exception:
+        pass
+    return {"count": len(incidents), "incidents": incidents}
+
 @app.get("/api/reports")
 def get_reports(service: Service | None=None, status: Status | None=None):
     return get_all(service,status)
