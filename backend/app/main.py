@@ -5,6 +5,7 @@ import os, sqlite3, asyncio
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from .sources import fetch_ioda_alerts, fetch_cloudflare_outages, source_health
 
 Service = Literal["electricity", "water", "internet", "mobile"]
 Status = Literal["down", "partial", "restored"]
@@ -25,7 +26,7 @@ class Report(ReportIn):
     confidence: int = 50
 
 clients: set[WebSocket] = set()
-app = FastAPI(title="LiveCity API", version="0.1.0")
+app = FastAPI(title="LiveCity API", version="0.2.0")
 
 origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
 app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
@@ -72,6 +73,18 @@ def startup(): db().close()
 
 @app.get("/health")
 def health(): return {"status":"ok","service":"livecity-api","reports":len(get_all())}
+
+@app.get("/api/sources/health")
+async def get_source_health():
+    return {"sources": await source_health()}
+
+@app.get("/api/sources/internet/ioda")
+async def get_ioda_alerts(limit: int = 100):
+    return {"source": "ioda", "alerts": await fetch_ioda_alerts(limit=max(1, min(limit, 500)))}
+
+@app.get("/api/sources/internet/cloudflare")
+async def get_cloudflare_outages(days: int = 1):
+    return {"source": "cloudflare-radar", "configured": bool(os.getenv("RADAR_API_TOKEN")), "outages": await fetch_cloudflare_outages(days=max(1, min(days, 7)))}
 
 @app.get("/api/reports")
 def get_reports(service: Service | None=None, status: Status | None=None):
