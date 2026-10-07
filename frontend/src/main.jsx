@@ -1,5 +1,5 @@
 import React,{useEffect,useMemo,useState}from"react";import{createRoot}from"react-dom/client";import L from"leaflet";import"leaflet/dist/leaflet.css";import"./styles.css";
-const API=import.meta.env.VITE_API_URL||"http://localhost:8000";
+const API=import.meta.env.VITE_API_URL||"";
 const services=[{id:"electricity",label:"Electricity",icon:"⚡"},{id:"water",label:"Water",icon:"💧"},{id:"internet",label:"Internet",icon:"🌐"},{id:"mobile",label:"Mobile",icon:"📱"}];
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
 function App(){const[reports,setReports]=useState([]),[sourceIncidents,setSourceIncidents]=useState([]),[service,setService]=useState("all"),[lastSync,setLastSync]=useState(null),[map,setMap]=useState(null),[form,setForm]=useState({service:"electricity",description:""}),[loc,setLoc]=useState(null),[online,setOnline]=useState(true);const visible=useMemo(()=>service==="all"?reports:reports.filter(r=>r.service===service),[reports,service]);
