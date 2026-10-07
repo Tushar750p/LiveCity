@@ -5,7 +5,7 @@ import os, sqlite3, asyncio
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from .sources import fetch_ioda_alerts, fetch_cloudflare_outages, source_health
+from .sources import fetch_ioda_alerts, fetch_cloudflare_outages, source_health, fetch_water_outages, fetch_power_outages, fetch_mobile_cells
 
 Service = Literal["electricity", "water", "internet", "mobile"]
 Status = Literal["down", "partial", "restored"]
@@ -126,6 +126,18 @@ async def get_live_incidents():
     except Exception:
         pass
     return {"count": len(incidents), "incidents": incidents}
+
+@app.get("/api/sources/electricity")
+async def get_power_source():
+    return {"source": "ArcGIS", "configured": bool(os.getenv("POWER_ARCGIS_LAYER_URL")), "features": await fetch_power_outages()}
+
+@app.get("/api/sources/water")
+async def get_water_source():
+    return {"source": "ArcGIS", "configured": bool(os.getenv("WATER_ARCGIS_LAYER_URL")), "features": await fetch_water_outages()}
+
+@app.get("/api/sources/mobile/cell")
+async def get_mobile_cell(mcc: int, mnc: int, lac: int, cellid: int, radio: str | None = None):
+    return await fetch_mobile_cells(mcc, mnc, lac, cellid, radio)
 
 @app.get("/api/reports")
 def get_reports(service: Service | None=None, status: Status | None=None):
