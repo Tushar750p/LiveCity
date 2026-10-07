@@ -14,4 +14,4 @@ COPY backend/app ./app
 COPY --from=web-build /web/dist ./web
 EXPOSE 8000
 ENV PORT=8000
-CMD ["sh","-c","uvicorn app.main:app --host 0.0.0.0 --port \$PORT"]
+CMD ["sh","-c","uvicorn app.main:app --host 0.0.0.0 --port $PORT"]
