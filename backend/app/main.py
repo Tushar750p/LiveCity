@@ -5,7 +5,7 @@ import os, sqlite3, asyncio
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from .sources import fetch_ioda_alerts, fetch_cloudflare_outages, source_health, fetch_water_outages, fetch_power_outages, fetch_mobile_cells
+from .sources import fetch_ioda_alerts, fetch_cloudflare_outages, source_health, fetch_water_outages, fetch_power_outages, fetch_mobile_cells, source_registry, normalize_source_features
 
 Service = Literal["electricity", "water", "internet", "mobile"]
 Status = Literal["down", "partial", "restored"]
@@ -74,6 +74,10 @@ def startup(): db().close()
 @app.get("/health")
 def health(): return {"status":"ok","service":"livecity-api","reports":len(get_all())}
 
+@app.get("/api/sources/registry")
+def get_source_registry():
+    return {"sources": source_registry()}
+
 @app.get("/api/sources/health")
 async def get_source_health():
     return {"sources": await source_health()}
@@ -129,11 +133,13 @@ async def get_live_incidents():
 
 @app.get("/api/sources/electricity")
 async def get_power_source():
-    return {"source": "ArcGIS", "configured": bool(os.getenv("POWER_ARCGIS_LAYER_URL")), "features": await fetch_power_outages()}
+    features = await fetch_power_outages()
+    return {"source": "ArcGIS", "configured": bool(os.getenv("POWER_ARCGIS_LAYER_URL")), "features": normalize_source_features(features, "electricity", "arcgis-power")}
 
 @app.get("/api/sources/water")
 async def get_water_source():
-    return {"source": "ArcGIS", "configured": bool(os.getenv("WATER_ARCGIS_LAYER_URL")), "features": await fetch_water_outages()}
+    features = await fetch_water_outages()
+    return {"source": "ArcGIS", "configured": bool(os.getenv("WATER_ARCGIS_LAYER_URL")), "features": normalize_source_features(features, "water", "arcgis-water")}
 
 @app.get("/api/sources/mobile/cell")
 async def get_mobile_cell(mcc: int, mnc: int, lac: int, cellid: int, radio: str | None = None):
