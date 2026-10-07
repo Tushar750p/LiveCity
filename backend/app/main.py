@@ -226,7 +226,7 @@ async def source_loop():
         except Exception: pass
         await asyncio.sleep(SOURCE_POLL_SECONDS)
 
-@app.mount("/", StaticFiles(directory="/app/web", html=True), name="web")
+app.mount("/", StaticFiles(directory="/app/web", html=True), name="web")
 
 @app.on_event("startup")
 async def startup():
