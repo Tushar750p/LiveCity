@@ -4,6 +4,7 @@ from uuid import uuid4
 import asyncio, json, math, os, sqlite3
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -224,6 +225,8 @@ async def source_loop():
         try: await sync_external_incidents()
         except Exception: pass
         await asyncio.sleep(SOURCE_POLL_SECONDS)
+
+@app.mount("/", StaticFiles(directory="/app/web", html=True), name="web")
 
 @app.on_event("startup")
 async def startup():
