@@ -84,3 +84,57 @@ async def source_health() -> list[dict[str, Any]]:
         "checked_at": _utc_now().isoformat(),
     })
     return result
+
+
+async def fetch_arcgis_layer(service_url: str, where: str = "1=1", out_fields: str = "*", out_sr: int = 4326) -> list[dict[str, Any]]:
+    """Generic public ArcGIS FeatureServer query adapter."""
+    url = service_url.rstrip("/") + "/query"
+    params = {
+        "where": where,
+        "outFields": out_fields,
+        "returnGeometry": "true",
+        "outSR": out_sr,
+        "f": "json",
+    }
+    async with httpx.AsyncClient(timeout=20) as client:
+        response = await client.get(url, params=params)
+        response.raise_for_status()
+        payload = response.json()
+    if "error" in payload:
+        raise RuntimeError(str(payload["error"]))
+    return payload.get("features", [])
+
+
+async def fetch_water_outages(service_url: str | None = None) -> list[dict[str, Any]]:
+    """Fetch public water interruption features from a configured ArcGIS layer."""
+    url = service_url or os.getenv("WATER_ARCGIS_LAYER_URL")
+    if not url:
+        return []
+    return await fetch_arcgis_layer(url)
+
+
+async def fetch_power_outages(service_url: str | None = None) -> list[dict[str, Any]]:
+    """Fetch public power outage features from a configured ArcGIS layer."""
+    url = service_url or os.getenv("POWER_ARCGIS_LAYER_URL")
+    if not url:
+        return []
+    return await fetch_arcgis_layer(url)
+
+
+async def fetch_mobile_cells(
+    mcc: int, mnc: int, lac: int, cellid: int, radio: str | None = None
+) -> dict[str, Any]:
+    """Look up a mobile cell using OpenCelliD when OPENCELLID_API_KEY is configured."""
+    key = os.getenv("OPENCELLID_API_KEY")
+    if not key:
+        return {"configured": False, "cell": None}
+    params: dict[str, Any] = {
+        "key": key, "mcc": mcc, "mnc": mnc, "lac": lac,
+        "cellid": cellid, "format": "json",
+    }
+    if radio:
+        params["radio"] = radio
+    async with httpx.AsyncClient(timeout=15) as client:
+        response = await client.get("https://opencellid.org/cell/get", params=params)
+        response.raise_for_status()
+        return {"configured": True, "cell": response.json()}
