@@ -226,8 +226,6 @@ async def source_loop():
         except Exception: pass
         await asyncio.sleep(SOURCE_POLL_SECONDS)
 
-app.mount("/", StaticFiles(directory="/app/web", html=True), name="web")
-
 @app.on_event("startup")
 async def startup():
     db().close()
@@ -345,3 +343,5 @@ async def websocket(ws: WebSocket):
             await ws.receive_text()
     except WebSocketDisconnect:
         clients.discard(ws)
+
+app.mount("/", StaticFiles(directory="/app/web", html=True), name="web")
