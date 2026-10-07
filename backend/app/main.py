@@ -10,11 +10,11 @@ from pydantic import BaseModel, Field
 
 from .sources import (
     fetch_ioda_alerts, fetch_cloudflare_outages, source_health,
-    fetch_water_outages, fetch_power_outages, fetch_mobile_cells,
+    fetch_water_outages, fetch_power_outages, fetch_mobile_cells, fetch_gas_outages,
     source_registry, normalize_source_features,
 )
 
-Service = Literal["electricity", "water", "internet", "mobile"]
+Service = Literal["electricity", "water", "internet", "mobile", "gas"]
 Status = Literal["down", "partial", "restored"]
 
 DB_PATH = os.getenv("DB_PATH", "/tmp/livecity.db")
@@ -213,6 +213,10 @@ async def sync_external_incidents():
         items.extend(normalize_source_features(await fetch_water_outages(), "water", "arcgis-water"))
     except Exception:
         pass
+    try:
+        items.extend(normalize_source_features(await fetch_gas_outages(), "gas", "arcgis-gas"))
+    except Exception:
+        pass
     if items:
         persist_incidents(items)
     else:
@@ -283,6 +287,11 @@ async def get_power_source():
 async def get_water_source():
     features = await fetch_water_outages()
     return {"source": "ArcGIS", "configured": bool(os.getenv("WATER_ARCGIS_LAYER_URL")), "features": normalize_source_features(features, "water", "arcgis-water")}
+
+@app.get("/api/sources/gas")
+async def get_gas_source():
+    features = await fetch_gas_outages()
+    return {"source": "ArcGIS", "configured": bool(os.getenv("GAS_ARCGIS_LAYER_URL")), "features": normalize_source_features(features, "gas", "arcgis-gas")}
 
 @app.get("/api/sources/mobile/cell")
 async def get_mobile_cell(mcc: int, mnc: int, lac: int, cellid: int, radio: str | None = None):
