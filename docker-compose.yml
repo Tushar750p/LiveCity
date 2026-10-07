@@ -6,8 +6,15 @@ services:
     environment:
       CORS_ORIGINS: http://localhost:4173
       DB_PATH: /data/livecity.db
+      SOURCE_POLL_SECONDS: 300
+      INCIDENT_TTL_MINUTES: 360
+      RADAR_API_TOKEN: ${RADAR_API_TOKEN:-}
+      POWER_ARCGIS_LAYER_URL: ${POWER_ARCGIS_LAYER_URL:-}
+      WATER_ARCGIS_LAYER_URL: ${WATER_ARCGIS_LAYER_URL:-}
+      OPENCELLID_API_KEY: ${OPENCELLID_API_KEY:-}
     volumes:
       - livecity_data:/data
+
   frontend:
     build: ./frontend
     ports:
