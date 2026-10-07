@@ -121,6 +121,14 @@ async def fetch_power_outages(service_url: str | None = None) -> list[dict[str, 
     return await fetch_arcgis_layer(url)
 
 
+async def fetch_gas_outages(service_url: str | None = None) -> list[dict[str, Any]]:
+    """Fetch source-backed gas interruption features; never infer outages."""
+    url = service_url or os.getenv("GAS_ARCGIS_LAYER_URL")
+    if not url:
+        return []
+    return await fetch_arcgis_layer(url)
+
+
 async def fetch_mobile_cells(
     mcc: int, mnc: int, lac: int, cellid: int, radio: str | None = None
 ) -> dict[str, Any]:
@@ -146,6 +154,7 @@ SOURCE_REGISTRY = [
     {"id": "arcgis-power", "service": "electricity", "type": "feature_server", "auth": False, "env": "POWER_ARCGIS_LAYER_URL", "enabled": True},
     {"id": "arcgis-water", "service": "water", "type": "feature_server", "auth": False, "env": "WATER_ARCGIS_LAYER_URL", "enabled": True},
     {"id": "opencellid", "service": "mobile", "type": "cell_database", "auth": True, "env": "OPENCELLID_API_KEY", "enabled": True},
+    {"id": "arcgis-gas", "service": "gas", "type": "feature_server", "auth": False, "env": "GAS_ARCGIS_LAYER_URL", "enabled": True},
 ]
 
 
